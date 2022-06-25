@@ -1,9 +1,99 @@
 <!DOCTYPE html>
 <html>
+  <head>
+    <script lang='javascript'>
+    //<![CDATA[
+  	const corsProxy = 'https://api.allorigins.win/get?url=';
+	const validMediafireIdentifierDL = /^[a-zA-Z0-9]+$/m;
+	const checkHTTP = /^https?:\/\//m;
+
+
+	var downloadFile = function(filePath) {
+    let link=document.createElement('a');
+    link.href = filePath;
+    link.download = filePath.substr(filePath.lastIndexOf('/') + 1);
+    link.click();
+  	};
+
+  var attemptDownloadRedirect = async function() {
+    // in case we are running from the download button
+    // if (!url) url = document.getElementById('mediafire-url').value;
+    
+
+	
+    if(location.href.indexOf("?dl=")>0){
+	let url;
+	if(location.href.indexOf("&m=")<0){
+      // modify the link to work with proxy
+      url = location.href.substring(location.href.indexOf("?dl=")+4,location.href.length);
+	}else{
+		url = location.href.substring(location.href.indexOf("?dl=")+4,location.href.indexOf("&m="));
+	}
+	
+      url = url.replace('http://', 'https://'); // not required, but makes them secure
+      // if it's just the download identifier, add on mediafire pre-link
+      if (validMediafireIdentifierDL.test(url)) url = 'https://mediafire.com/?' + url;
+      // if the link doesn't have http(s), it needs to be appended
+      if (!checkHTTP.test(url)) url = 'https://' + url;
+
+      console.log(`Checking "${url}" for valid download page...`);
+      // try and get the mediafire page to get actual download link
+      try {
+        let mediafirePageResponse = await fetch(corsProxy+encodeURIComponent(url));
+        console.log("mediafirePageResponse"+mediafirePageResponse)
+        // make sure the response was ok
+        if (mediafirePageResponse.ok) {
+          let data = await mediafirePageResponse.json();
+          let html = data.contents;
+
+          // if we received a page
+          if (html) {
+            // Convert the HTML string into a document object
+            let parser = new DOMParser();
+            let doc = parser.parseFromString(html, 'text/html');
+
+            // redirect to direct download if the download page was real (and not taken down)
+            let mfDlBtn = doc.getElementById('downloadButton');
+            if (mfDlBtn && mfDlBtn.href) {
+              let dlUrl = mfDlBtn.href;
+
+              console.log(`Downloading from "${dlUrl}"...`);
+              // need to do correct download based on if we came from parameters
+              downloadFile(dlUrl);
+
+              return true;
+            }
+          }
+        } 
+        // all else should produce an error
+        return false;
+      } catch (err) {
+        // There was an error
+        return false;
+      }
+    }
+    
+  };
+	//]]>
+  </script>
+  </head>
 <body>
 
 <h1>My First Heading</h1>
 <p>My first paragraph.</p>
-
+  <script lang="javascript">
+			var pAutoDL = document.getElementById('auto-down');
+			var time = 2;
+			var fntimecount = setInterval(() => {
+			if(time <=0){
+              //alert("hello");
+                pAutoDL.style="visibility: visible;text-align: center;";
+				        attemptDownloadRedirect();
+                clearInterval(fntimecount);
+			}
+			time--;
+		}, 1000);
+		
+	</script>
 </body>
 </html>
